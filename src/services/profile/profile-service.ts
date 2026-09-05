@@ -40,6 +40,26 @@ export class ProfileService {
     return `github-${name}`;
   }
 
+  private async getProfile(profile: string) {
+    const { username, email } = (await this.gitService.getConfigKeysByPrefix(
+      [CONFIG_PROFILE_PREFIX, profile],
+      { global: true },
+    )) as Record<string, string>;
+    if (!username || !email) {
+      throw new Error(`Profile with name ${profile} does not exist`);
+    }
+    return { name: profile, username, email } as Profile;
+  }
+
+  private parseCloneTarget(url: string) {
+    const shorthand = url.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+    if (shorthand) {
+      return { owner: shorthand[1]!, repo: shorthand[2]! };
+    }
+    const parsed = new RemoteUrl(url);
+    return { owner: parsed.owner, repo: parsed.repo };
+  }
+
   async addProfile(opts: Profile & { file: string }) {
     const { name, username, file, email } = opts;
     const profileName = this.getSshProfileName(name);
@@ -63,13 +83,7 @@ export class ProfileService {
   }
 
   async switchProfile(profile: string) {
-    const { username, email } = (await this.gitService.getConfigKeysByPrefix(
-      [CONFIG_PROFILE_PREFIX, profile],
-      { global: true },
-    )) as Record<string, string>;
-    if (!username || !email) {
-      throw new Error(`Profile with name ${profile} does not exist`);
-    }
+    const { username, email } = await this.getProfile(profile);
     await this.gitService.setConfigKey(["user", "name"], username);
     await this.gitService.setConfigKey(["user", "email"], email);
     const remotes = await this.gitService.getRemoteUrl();
@@ -101,6 +115,39 @@ export class ProfileService {
         await this.gitService.setRemoteUrl(remoteName, newUrl, true);
       }
     }
+  }
+
+  async resolveProfile(profile?: string) {
+    if (profile) return profile;
+    const defaultProfile = await this.getDefaultProfile();
+    if (!defaultProfile) {
+      throw new Error(
+        "No profile specified and no default set. Use `gitu default <profile>` to set one.",
+      );
+    }
+    return defaultProfile;
+  }
+
+  async cloneRepo(url: string, directory?: string, profile?: string) {
+    const target = await this.resolveProfile(profile);
+    const { username, email } = await this.getProfile(target);
+    const { owner, repo } = this.parseCloneTarget(url);
+
+    const cloneUrl = RemoteUrl.generateUrl({
+      protocol: "ssh",
+      sshUser: GITHUB_SSH_USER,
+      host: this.getSshProfileName(target),
+      owner,
+      repo,
+    });
+
+    await this.gitService.clone(cloneUrl, directory);
+
+    const cwd = directory ?? repo;
+    await this.gitService.setConfigKey(["user", "name"], username, { cwd });
+    await this.gitService.setConfigKey(["user", "email"], email, { cwd });
+
+    return { profile: target, directory: cwd, url: cloneUrl };
   }
 
   async setDefaultProfile(name: string) {

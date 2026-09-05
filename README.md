@@ -41,6 +41,20 @@ gitu use work
 gitu use        # uses default profile
 ```
 
+### `clone <url> [directory]`
+
+Clone a repository using a profile's SSH key. The URL is rewritten to the profile's SSH host alias before cloning, and `user.name`/`user.email` are set locally in the new repo. Uses the default profile if `-p` is not given.
+
+```bash
+gitu clone https://github.com/owner/repo.git
+gitu clone owner/repo                          # shorthand
+gitu clone -p work git@github.com:owner/repo.git my-dir
+```
+
+| Option | Description |
+|---|---|
+| `-p, --profile <profile>` | Profile to clone with (default profile if omitted) |
+
 ### `default <profile>`
 
 Set the default profile used by `gitu use` when no profile is specified.
@@ -68,4 +82,4 @@ gitu remove work
 ## How it works
 
 - **Profile data** is stored in global git config under the `gitu.*` prefix (e.g. `gitu.work.email`).
-- **SSH host aliases** follow the pattern `github-<profileName>` (e.g. `github-work`) and are written to `~/.ssh/config`. When switching profiles, remote URLs are rewritten from `git@github.com:owner/repo.git` to `git@github-work:owner/repo.git`.
+- **SSH host aliases** follow the pattern `github-<profileName>` (e.g. `github-work`) and are written to `~/.ssh/config`. When switching profiles — or cloning — remote URLs are rewritten from `git@github.com:owner/repo.git` to `git@github-work:owner/repo.git`.

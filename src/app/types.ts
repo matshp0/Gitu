@@ -4,3 +4,7 @@ export interface AddProfileOptions {
   email?: string;
   file?: string;
 }
+
+export interface CloneOptions {
+  profile?: string;
+}

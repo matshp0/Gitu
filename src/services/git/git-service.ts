@@ -5,12 +5,14 @@ import { GitExitCode } from "./git-exit-code.enum";
 import { RemoteUrl } from "./remote-url";
 
 interface ConfigOptions {
-  global: boolean;
+  global?: boolean;
+  cwd?: string;
 }
 
 const ERR_INVALID_KEY = new Error("Invalid Git key");
 const ERR_NOT_GIT_REPOSITORY = new Error("Not a git repository");
 const ERR_PARSE_FAILED = new Error("Can't parse the output of git command");
+const ERR_CLONE_FAILED = new Error("git clone failed");
 
 export class GitService {
   readonly prefix: string = CONFIG_PROFILE_PREFIX;
@@ -70,7 +72,8 @@ export class GitService {
     const key = prefixes.join(".");
     if (!this.isValidKey(key)) throw ERR_INVALID_KEY;
     const locality = options?.global ? "global" : "local";
-    const proc = $`git config --${locality} ${key} ${value}`.quiet();
+    let proc = $`git config --${locality} ${key} ${value}`.quiet();
+    if (options?.cwd) proc = proc.cwd(options.cwd);
     await proc.nothrow();
   }
 
@@ -117,6 +120,14 @@ export class GitService {
     if (res.exitCode === GitExitCode.FATAL) throw ERR_NOT_GIT_REPOSITORY;
     const text = res.text();
     return this.parseGitRemoteOutput(text);
+  }
+
+  async clone(url: string, directory?: string) {
+    const args = ["clone", url];
+    if (directory) args.push(directory);
+    const proc = $`git ${args}`;
+    const res = await proc.nothrow();
+    if (res.exitCode !== GitExitCode.SUCCESS) throw ERR_CLONE_FAILED;
   }
 
   async removeConfigKey(key: string, options?: ConfigOptions) {

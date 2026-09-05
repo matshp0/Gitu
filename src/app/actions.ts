@@ -1,4 +1,4 @@
-import type { AddProfileOptions } from "./types";
+import type { AddProfileOptions, CloneOptions } from "./types";
 import { addProfilePrompts, confirmRemoveProfile } from "./prompts";
 import { GitService } from "../services/git/git-service";
 import { ProfileService } from "../services/profile/profile-service";
@@ -16,19 +16,26 @@ export const addProfile = async (options: AddProfileOptions) => {
 
 export const useProfile = async (profile?: string) => {
   try {
-    let target = profile;
-    if (!target) {
-      const defaultProfile = await profileService.getDefaultProfile();
-      if (!defaultProfile) {
-        console.log(
-          "Error: No profile specified and no default set. Use `gitu default <profile>` to set one.",
-        );
-        return;
-      }
-      target = defaultProfile;
-    }
+    const target = await profileService.resolveProfile(profile);
     await profileService.switchProfile(target);
     console.log(`Switched to profile: ${target}`);
+  } catch (err) {
+    if (err instanceof Error) {
+      console.log(`Error: ${err.message}`);
+    }
+  }
+};
+
+export const cloneRepo = async (
+  url: string,
+  directory: string | undefined,
+  options: CloneOptions,
+) => {
+  try {
+    const res = await profileService.cloneRepo(url, directory, options.profile);
+    console.log(
+      `Cloned into '${res.directory}' using profile: ${res.profile}`,
+    );
   } catch (err) {
     if (err instanceof Error) {
       console.log(`Error: ${err.message}`);

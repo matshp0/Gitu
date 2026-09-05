@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import {
   addProfile,
+  cloneRepo,
   listProfiles,
   useProfile,
   test,
@@ -23,6 +24,16 @@ export const register = (cli: Command) => {
     .description("Change current profile (uses default if no profile given)")
     .argument("[profile]", "profile to switch to")
     .action(useProfile);
+
+  cli
+    .command("clone")
+    .description(
+      "Clone a repository using a profile's ssh key (uses default if no profile given)",
+    )
+    .argument("<url>", "repository url or owner/repo")
+    .argument("[directory]", "directory to clone into")
+    .option("-p, --profile <profile>", "profile to clone with")
+    .action(cloneRepo);
 
   cli
     .command("default")
